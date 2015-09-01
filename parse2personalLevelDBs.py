@@ -35,25 +35,25 @@ try:
         series=int(f.split('_')[1][-1])
         dataSet=subj1Test if series==8 else subj1Train
 
-        personID=int(f.split('_')[0][4:])
+        # personID=int(f.split('_')[0][4:])
         data=pd.read_csv('train/'+f)
 
         #convert the data time id to int
-        data['id']=data['id'].apply(lambda s: int(s.split('_')[2]))
+        # data['id']=data['id'].apply(lambda s: int(s.split('_')[2]))
         data=data.values
 
         n=len(data)
         #add person ID as a feature
-        data=np.concatenate(([[personID] for i in xrange(n)],data),axis=1).astype(int)
+        # data=np.concatenate(([[personID] for i in xrange(n)],data),axis=1).astype(int)
         #remove id in labels
         labels=list(pd.read_csv('train/'+f.replace('data','events')).values[:,1:].astype(int))
 
         # normalize data
-        ids=data[:,0]
-        data=data[:,1:]
+        # ids=data[:,0]
+        # data=data[:,1:]
         data=data-data.mean(axis=0)
         data=data/data.std(axis=0)
-        data=np.concatenate(([[k]for k in ids],data),axis=1)
+        # data=np.concatenate(([[k]for k in ids],data),axis=1)
 
         lastStatus=0
         for i in xrange(n):
