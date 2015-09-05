@@ -29,35 +29,41 @@ try:
 
 
 
-    for f in subj1Files:
-        print f
+    for db in subj1Files:
+        print db
 
-        series=int(f.split('_')[1][-1])
+        series=int(db.split('_')[1][-1])
         dataSet=subj1Test if series==8 else subj1Train
 
-        # personID=int(f.split('_')[0][4:])
-        data=pd.read_csv('train/'+f)
+        # personID=int(db.split('_')[0][4:])
+        data=pd.read_csv('train/'+db)
 
         #convert the data time id to int
         # data['id']=data['id'].apply(lambda s: int(s.split('_')[2]))
-        data=data.values
 
         n=len(data)
         #add person ID as a feature
         # data=np.concatenate(([[personID] for i in xrange(n)],data),axis=1).astype(int)
         #remove id in labels
-        labels=list(pd.read_csv('train/'+f.replace('data','events')).values[:,1:].astype(int))
+        labels=list(pd.read_csv('train/'+db.replace('data','events')).values[:,1:].astype(int))
 
         # normalize data
         # ids=data[:,0]
-        # data=data[:,1:]
+        data=data.values[:,1:].astype(int)
         data=data-data.mean(axis=0)
         data=data/data.std(axis=0)
+        print data.mean(axis=0)
+        print data.std(axis=0)
+        print data.min(axis=0)
+
+
         # data=np.concatenate(([[k]for k in ids],data),axis=1)
 
         lastStatus=0
+
+        data=list(data)
         for i in xrange(n):
-            data[i]+=[lastStatus]
+            # data[i]+=[lastStatus]
 
             updateStatus=lastStatus
             if labels[i][0]==1:
@@ -88,8 +94,10 @@ try:
 
             lastStatus=updateStatus
             labels[i] =updateStatus
+
         labels_data=np.concatenate(([[k] for k in labels], data),axis=1)
         dataSet+=[labels_data]
+        print np.array(data).shape
 
     subj1Train=np.concatenate(subj1Train,axis=0)
     subj1Test=np.concatenate(subj1Test,axis=0)
@@ -107,8 +115,27 @@ try:
     
     #subsample:
     subsampleRate=16
-    subsampleTrain=subj1Train[::16]
-    subsampleTest=subj1Test[::16]
+    train_l=subj1Train[:,0][::subsampleRate] if len(subj1Train)%16==0 else subj1Train[:,0][::subsampleRate][:-1]
+    test_l=subj1Test[:,0][::subsampleRate] if len(subj1Test)%16==0 else subj1Test[:,0][::subsampleRate][:-1]
+
+    train_l=[[i] for i in train_l]
+    test_l=[[i] for i in test_l]
+
+    subj1Train=subj1Train[:,1:]
+    subj1Test=subj1Test[:,1:]
+
+
+    n_subj1=len(subj1Train)
+    subsampleTrain=[subj1Train[i*subsampleRate:(i+1)*subsampleRate].mean(axis=1) for i in xrange(n_subj1//subsampleRate)]
+    n_subj1=len(subj1Test)
+    subsampleTest=[subj1Test[i*subsampleRate:(i+1)*subsampleRate].mean(axis=1) for i in xrange(n_subj1//subsampleRate)]
+    # subsampleTest=subj1Test[::subsampleRate]
+    print np.array(subsampleTest).shape
+    print np.array(test_l).shape
+
+    subsampleTrain=np.hstack((train_l, subsampleTrain))
+    subsampleTest=np.hstack((test_l,subsampleTest))
+
 
     #combine a time window of data as one record (window size counted in the number of data points in original traces).
     windowSize=1024
@@ -121,6 +148,7 @@ try:
     batch=leveldb.WriteBatch()
     batchSize=1000
     datum=caffe_pb2.Datum()  
+    print windowedTrain[67]
 
 
     print 'start'
@@ -144,17 +172,17 @@ try:
                 db.Write(batch,sync=True)
                 batch=leveldb.WriteBatch()
 
-                print f, ': ', i+1
+                print db, ': ', i+1
 
-        if n%batchSize!=0:
+        if len(dataSet)%batchSize!=0:
             db.Write(batch,sync=True)
 
-            print f, ' last : ', n
+            print db, ' last : ', len(dataSet)
 
 
 
 
-            # print 'ID=', personID, 'data', f.split('data.csv')[0], ':    ', data[0], 'events', labels[0]
+            # print 'ID=', personID, 'data', db.split('data.csv')[0], ':    ', data[0], 'events', labels[0]
 finally:
     del trainDB
     del testDB

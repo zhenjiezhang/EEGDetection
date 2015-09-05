@@ -5,7 +5,7 @@ layer {
   top: "label"
   data_param {
     source: "databases/train_subj1_leveldb"
-    batch_size: 64
+    batch_size: 16
     backend: LEVELDB
   }
 }
@@ -16,11 +16,10 @@ layer {
   top: "conv2"
   convolution_param {
     num_output: 8
+    kernel_size: 5
     weight_filler {
       type: "xavier"
     }
-    kernel_h: 3
-    kernel_w: 1
   }
 }
 layer {
@@ -30,18 +29,26 @@ layer {
   top: "pool1"
   pooling_param {
     pool: MAX
+    kernel_size: 2
     stride: 2
-    kernel_h: 2
-    kernel_w: 1
+  }
+}
+layer {
+  name: "drop2"
+  type: "Dropout"
+  bottom: "pool1"
+  top: "drop2"
+  dropout_param {
+    dropout_ratio: 0.1
   }
 }
 layer {
   name: "ip1"
   type: "InnerProduct"
-  bottom: "pool1"
+  bottom: "drop2"
   top: "ip1"
   inner_product_param {
-    num_output: 128
+    num_output: 64
     weight_filler {
       type: "xavier"
     }
@@ -54,9 +61,21 @@ layer {
   top: "ip1"
 }
 layer {
+  name: "ip4"
+  type: "InnerProduct"
+  bottom: "ip1"
+  top: "ip4"
+  inner_product_param {
+    num_output: 12
+    weight_filler {
+      type: "xavier"
+    }
+  }
+}
+layer {
   name: "loss"
   type: "SoftmaxWithLoss"
-  bottom: "ip1"
+  bottom: "ip4"
   bottom: "label"
   top: "loss"
 }
