@@ -5,7 +5,7 @@ layer {
   top: "label"
   data_param {
     source: "databases/train_subj1_leveldb"
-    batch_size: 16
+    batch_size: 100
     backend: LEVELDB
   }
 }
@@ -16,10 +16,11 @@ layer {
   top: "conv2"
   convolution_param {
     num_output: 8
-    kernel_size: 5
     weight_filler {
       type: "xavier"
     }
+    kernel_h: 5
+    kernel_w: 1
   }
 }
 layer {
@@ -29,8 +30,10 @@ layer {
   top: "pool1"
   pooling_param {
     pool: MAX
-    kernel_size: 2
-    stride: 2
+    kernel_h: 2
+    kernel_w: 1
+    stride_h: 2
+    stride_w: 1
   }
 }
 layer {
@@ -39,7 +42,7 @@ layer {
   bottom: "pool1"
   top: "drop2"
   dropout_param {
-    dropout_ratio: 0.1
+    dropout_ratio: 0.3
   }
 }
 layer {

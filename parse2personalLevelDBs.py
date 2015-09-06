@@ -126,9 +126,9 @@ try:
 
 
     n_subj1=len(subj1Train)
-    subsampleTrain=[subj1Train[i*subsampleRate:(i+1)*subsampleRate].mean(axis=1) for i in xrange(n_subj1//subsampleRate)]
+    subsampleTrain=[subj1Train[i*subsampleRate:(i+1)*subsampleRate].mean(axis=0) for i in xrange(n_subj1//subsampleRate)]
     n_subj1=len(subj1Test)
-    subsampleTest=[subj1Test[i*subsampleRate:(i+1)*subsampleRate].mean(axis=1) for i in xrange(n_subj1//subsampleRate)]
+    subsampleTest=[subj1Test[i*subsampleRate:(i+1)*subsampleRate].mean(axis=0) for i in xrange(n_subj1//subsampleRate)]
     # subsampleTest=subj1Test[::subsampleRate]
     print np.array(subsampleTest).shape
     print np.array(test_l).shape
@@ -150,10 +150,13 @@ try:
     datum=caffe_pb2.Datum()  
     print windowedTrain[67]
 
+    print windowedTrain.shape
+
 
     print 'start'
     for dataSet, db in zip([windowedTrain, windowedTest],[trainDB,testDB]):
-        np.random.shuffle(dataSet)
+        if dataSet is windowedTrain:
+            np.random.shuffle(dataSet)
         print 'writing'
 
         for i in xrange(len(dataSet)):
@@ -161,7 +164,8 @@ try:
                 print dataSet[i,:,1:].shape
 
             #convert data and label to datum structures
-            datum=caffe.io.array_to_datum(np.array([dataSet[i,:,1:]]),int(dataSet[i,-1,0]))
+            dataString=dataSet[i,:,1:].reshape(1,64,32)
+            datum=caffe.io.array_to_datum(dataString,int(dataSet[i,-1,0]))
 
             #store data and label points to batches
             keystr= '{:0>10d}'.format(i)

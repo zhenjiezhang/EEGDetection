@@ -15,10 +15,10 @@ def setLayers(leveldb, batch_size):
     # n.drop1=L.Dropout(n.data,dropout_ratio=0.5)
     # n.conv1 = L.Convolution(n.drop1, kernel_size=1, num_output=4, weight_filler=dict(type='xavier'))
 
-    n.conv2 = L.Convolution(n.data, kernel_size=5, num_output=8, weight_filler=dict(type='xavier'))
-    n.pool1 = L.Pooling(n.conv2, kernel_size=2, stride=2, pool=P.Pooling.MAX)
+    n.conv2 = L.Convolution(n.data, kernel_h=5, kernel_w=1, num_output=8, weight_filler=dict(type='xavier'))
+    n.pool1 = L.Pooling(n.conv2, kernel_h=2, kernel_w=1, stride_h=2, stride_w=1, pool=P.Pooling.MAX)
 
-    n.drop2=L.Dropout(n.pool1,dropout_ratio=0.1)
+    n.drop2=L.Dropout(n.pool1,dropout_ratio=0.3)
     n.ip1 = L.InnerProduct(n.drop2, num_output=64, weight_filler=dict(type='xavier'))
     # n.drop3=L.Dropout(n.ip1,dropout_ratio=0.5)
     # n.ip2 = L.InnerProduct(n.drop3, num_output=196, weight_filler=dict(type='xavier'))
@@ -31,7 +31,7 @@ def setLayers(leveldb, batch_size):
     return n.to_proto()
     
 with open('trainNet.prototxt', 'w') as f:
-    f.write(str(setLayers('databases/train_subj1_leveldb', 16)))
+    f.write(str(setLayers('databases/train_subj1_leveldb', 100)))
     
 with open('testNet.prototxt', 'w') as f:
-    f.write(str(setLayers('databases/test_subj1_leveldb', 16)))
+    f.write(str(setLayers('databases/test_subj1_leveldb', 100)))
