@@ -164,7 +164,7 @@ try:
                 print dataSet[i,:,1:].shape
 
             #convert data and label to datum structures
-            dataString=dataSet[i,:,1:].reshape(1,64,32)
+            dataString=dataSet[i,:,1:][np.newaxis,:]
             datum=caffe.io.array_to_datum(dataString,int(dataSet[i,-1,0]))
 
             #store data and label points to batches
