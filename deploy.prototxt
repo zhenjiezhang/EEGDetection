@@ -3,7 +3,6 @@ input_dim: 1
 input_dim: 1
 input_dim: 64
 input_dim: 32
-
 layer {
   name: "conv2"
   type: "Convolution"
@@ -14,7 +13,7 @@ layer {
     weight_filler {
       type: "xavier"
     }
-    kernel_h: 5
+    kernel_h: 6
     kernel_w: 1
   }
 }
@@ -25,7 +24,7 @@ layer {
   top: "pool1"
   pooling_param {
     pool: MAX
-    kernel_h: 2
+    kernel_h: 3
     kernel_w: 1
     stride_h: 2
     stride_w: 1
@@ -37,7 +36,7 @@ layer {
   bottom: "pool1"
   top: "drop2"
   dropout_param {
-    dropout_ratio: 0.3
+    dropout_ratio: 0.1
   }
 }
 layer {
@@ -46,7 +45,7 @@ layer {
   bottom: "drop2"
   top: "ip1"
   inner_product_param {
-    num_output: 64
+    num_output: 196
     weight_filler {
       type: "xavier"
     }

@@ -6,187 +6,195 @@ import numpy as np
 from caffe.proto import caffe_pb2
 import sys
 
-os.system('rm -rf databases/train_subj1_leveldb')
-os.system('rm -rf databases/test_subj1_leveldb')
+
+class subjectDataSet:
+    def __init__(self, subjectNum):
+        self.subjectNum=subjectNum
+        self.subjectTrainingFiles=[['train/subj'+str(subjectNum)+'_series'+str(i)+'_data.csv' for i in xrange(1,9)]]+\
+            [['train/subj'+str(subjectNum)+'_series'+str(i)+'_events.csv' for i in xrange(1,9)]]
+        self.subjectPredictDataFiles=['test/subj'+str(subjectNum)+'_series'+str(i)+'_data.csv' for i in xrange(9,11)]
+        self.setDataWindow(1024,16)
+
+    def setDataWindow(self, winSize, stepSize):
+
+        self.winSize=winSize
+        self.stepSize=stepSize
+        self.pointsInWindow=winSize//stepSize
+
+    def readFile(self, series):
+        print "reading subject "+str(self.subjectNum)+" series "+str(series)
+        df=self.subjectTrainingFiles[0][series-1] if series <9 else self.subjectPredictDataFiles[series-9]
+
+        data=pd.read_csv(df, index_col=0).values
+
+        if series < 9:
+            lf=self.subjectTrainingFiles[1][series-1]
+            labels=pd.read_csv(lf,index_col=0).values
+            return data, self.codeLabel(labels)
+        else:
+            return data
+
+    def dataNormalization(self, data):
+        mean=data.mean(axis=0)
+        std=data.std(axis=0)
+        return (data-mean)/std
+
+    def makeWindowedData(self, data):
+        stuffedData=np.vstack([[data[0] for i in xrange(self.winSize-1)],data])
+        windowedData=[data[end-(self.pointsInWindow-1)*self.stepSize:end+1:self.stepSize]\
+            for end in xrange(self.winSize-1, len(stuffedData))]
+        return np.array(windowedData)
 
 
 
-
-try:
-    trainDB=leveldb.LevelDB('databases/train_subj1_leveldb')
-    testDB=leveldb.LevelDB('databases/test_subj1_leveldb')
-
-    subj1Files=['subj1_series'+str(i)+'_data.csv' for i in xrange(1,9)]
-    # print subj1Files
-    # sys.exit()
-
-    # trainingFiles=os.listdir('train')
-    subj1Train=[]
-
-    subj1Test=[]
-
-
-
-
-
-    for db in subj1Files:
-        print db
-
-        series=int(db.split('_')[1][-1])
-        dataSet=subj1Test if series==8 else subj1Train
-
-        # personID=int(db.split('_')[0][4:])
-        data=pd.read_csv('train/'+db)
-
-        #convert the data time id to int
-        # data['id']=data['id'].apply(lambda s: int(s.split('_')[2]))
-
-        n=len(data)
-        #add person ID as a feature
-        # data=np.concatenate(([[personID] for i in xrange(n)],data),axis=1).astype(int)
-        #remove id in labels
-        labels=list(pd.read_csv('train/'+db.replace('data','events')).values[:,1:].astype(int))
-
-        # normalize data
-        # ids=data[:,0]
-        data=data.values[:,1:].astype(int)
-        data=data-data.mean(axis=0)
-        data=data/data.std(axis=0)
-        print data.mean(axis=0)
-        print data.std(axis=0)
-        print data.min(axis=0)
-
-
-        # data=np.concatenate(([[k]for k in ids],data),axis=1)
-
+    def codeLabel(self, labels):
+        codedLabels=[]
         lastStatus=0
-
-        data=list(data)
-        for i in xrange(n):
-            # data[i]+=[lastStatus]
-
+        for label in labels:
             updateStatus=lastStatus
-            if labels[i][0]==1:
+            if label[0]==1:
                 updateStatus=1
-            elif labels[i][1]==1:
+            elif label[1]==1:
                 updateStatus=2
-                if labels[i][2]==1:
+                if label[2]==1:
                     updateStatus=3
-                    if labels[i][3]==1:
+                    if label[3]==1:
                         updateStatus=5
-                elif labels[i][3]==1:
+                elif label[3]==1:
                     updateStatus=4
-            elif labels[i][2]==1:
+            elif label[2]==1:
                 updateStatus=6
-                if labels[i][3]==1:
+                if label[3]==1:
                     updateStatus=7
-            elif labels[i][3]==1:
+            elif label[3]==1:
                 updateStatus=8
-            elif labels[i][4]==1:
+            elif label[4]==1:
                 updateStatus=9
-                if labels[i][5]==1:
+                if label[5]==1:
                     updateStatus=10
-            elif labels[i][5]==1:
+            elif label[5]==1:
                 updateStatus=11
 
-            if lastStatus==11 and sum([a for a in labels[i]])==0:
+            if lastStatus==11 and sum([a for a in label])==0:
                 updateStatus=0
 
             lastStatus=updateStatus
-            labels[i] =updateStatus
+            codedLabels.append(updateStatus)
+        return np.array(codedLabels)
 
-        labels_data=np.concatenate(([[k] for k in labels], data),axis=1)
-        dataSet+=[labels_data]
-        print np.array(data).shape
-
-    subj1Train=np.concatenate(subj1Train,axis=0)
-    subj1Test=np.concatenate(subj1Test,axis=0)
-
-    
-
-        # np.random.shuffle(labels_data)
-
-        # data=labels_data[:,6:]
-        # labels=labels_data[:,:6]
+    def assembleData(self):
+        print "assembling subjest"+str(self.subjectNum)
+        self.trainData=None
+        self.trainLabel=None
+        self.testData=None
+        self.testLabel=None
+        self.predData=None
 
 
-        #set lastStatus to the latest action taken, reset lastStatus to 0 after one round of actions
-    
-    
-    #subsample:
-    subsampleRate=16
-    train_l=subj1Train[:,0][::subsampleRate] if len(subj1Train)%16==0 else subj1Train[:,0][::subsampleRate][:-1]
-    test_l=subj1Test[:,0][::subsampleRate] if len(subj1Test)%16==0 else subj1Test[:,0][::subsampleRate][:-1]
+        trainSeries=range(1,8)
+        testSeries=range(8,9)
+        predSeries=range(9,11)
 
-    train_l=[[i] for i in train_l]
-    test_l=[[i] for i in test_l]
+        for series in trainSeries:
+            d,l=self.readFile(series)
+            d=self.makeWindowedData(self.dataNormalization(d))
+            if self.trainData is None:
+                self.trainData=d
+                self.trainLabel=l
 
-    subj1Train=subj1Train[:,1:]
-    subj1Test=subj1Test[:,1:]
+            else:
+                np.hstack([self.trainData,d])
+                np.hstack([self.trainLabel,l])
 
+        self.shuffledTrainList=np.arange(len(self.trainData))
+        np.random.shuffle(self.shuffledTrainList)
 
-    n_subj1=len(subj1Train)
-    subsampleTrain=[subj1Train[i*subsampleRate:(i+1)*subsampleRate].mean(axis=0) for i in xrange(n_subj1//subsampleRate)]
-    n_subj1=len(subj1Test)
-    subsampleTest=[subj1Test[i*subsampleRate:(i+1)*subsampleRate].mean(axis=0) for i in xrange(n_subj1//subsampleRate)]
-    # subsampleTest=subj1Test[::subsampleRate]
-    print np.array(subsampleTest).shape
-    print np.array(test_l).shape
+        for series in testSeries:
+            d,l=self.readFile(series)
+            d=self.makeWindowedData(self.dataNormalization(d))
+            if self.testData is None:
+                self.testData=d
+                self.testLabel=l
+            else:
+                np.hstack([self.testData,d])
+                np.hstack([self.testLabel,l])
 
-    subsampleTrain=np.hstack((train_l, subsampleTrain))
-    subsampleTest=np.hstack((test_l,subsampleTest))
-
-
-    #combine a time window of data as one record (window size counted in the number of data points in original traces).
-    windowSize=1024
-    subsampleWindowSize=windowSize/subsampleRate
-
-
-    windowedTrain=np.array([subsampleTrain[i:i+subsampleWindowSize] for i in xrange(len(subsampleTrain)//subsampleWindowSize)])
-    windowedTest=np.array([subsampleTest[i:i+subsampleWindowSize] for i in xrange(len(subsampleTest)//subsampleWindowSize)])
-
-    batch=leveldb.WriteBatch()
-    batchSize=1000
-    datum=caffe_pb2.Datum()  
-    print windowedTrain[67]
-
-    print windowedTrain.shape
+        for series in predSeries:
+            d=self.readFile(series)
+            d=self.makeWindowedData(self.dataNormalization(d))
+            if self.predData is None:
+                self.predData=d
+            else:
+                np.hstack([self.predData,d])
 
 
-    print 'start'
-    for dataSet, db in zip([windowedTrain, windowedTest],[trainDB,testDB]):
-        if dataSet is windowedTrain:
-            np.random.shuffle(dataSet)
-        print 'writing'
 
-        for i in xrange(len(dataSet)):
-            if i==1:
-                print dataSet[i,:,1:].shape
+if __name__=="__main__":
 
-            #convert data and label to datum structures
-            dataString=dataSet[i,:,1:].reshape(1,64,32)
-            datum=caffe.io.array_to_datum(dataString,int(dataSet[i,-1,0]))
+    # sys.exit(0)
 
-            #store data and label points to batches
-            keystr= '{:0>10d}'.format(i)
-            batch.Put(keystr,datum.SerializeToString())
 
-            #write batches into database
-            if (i+1)%batchSize==0:
-                db.Write(batch,sync=True)
+
+    subjects=xrange(1,13)
+    for subject in subjects:
+
+
+
+        dataSet=subjectDataSet(subject)
+        dataSet.assembleData()
+
+
+        trainDBFile='databases/train_subj'+str(dataSet.subjectNum)+'_leveldb'
+        testDBFile='databases/test_subj'+str(dataSet.subjectNum)+'_leveldb'
+        predDataDBFile='databases/predData_subj'+str(dataSet.subjectNum)+'_leveldb'
+
+        for fileName in [trainDBFile,testDBFile,predDataDBFile]:
+            os.system('rm -rf '+fileName)
+
+        try:
+            print "starting database for ", dataSet.subjectNum
+            trainDB=leveldb.LevelDB(trainDBFile)
+            testDB=leveldb.LevelDB(testDBFile)
+            predDataDB=leveldb.LevelDB(predDataDBFile)
+
+            for data, labels, db in zip([dataSet.trainData,dataSet.testData,dataSet.predData],\
+                                        [dataSet.trainLabel,dataSet.testLabel,np.zeros(len(dataSet.predData))],
+                                        [trainDB,testDB,predDataDB]):
+
+
+            
                 batch=leveldb.WriteBatch()
+                batchSize=1000
+                datum=caffe_pb2.Datum()  
+       
+                index=dataSet.shuffledTrainList if data is dataSet.trainData else xrange(data.shape[0])
 
-                print db, ': ', i+1
+                for i, count in zip(index, range(len(data))):
 
-        if len(dataSet)%batchSize!=0:
-            db.Write(batch,sync=True)
+                    dataString=data[i][np.newaxis,:]
 
-            print db, ' last : ', len(dataSet)
+                    datum=caffe.io.array_to_datum(dataString,labels[i])
+
+                    #store data and label points to batches
+                    keystr= '{:0>10d}'.format(i)
+                    batch.Put(keystr,datum.SerializeToString())
+
+                    #write batches into database
+                    if (count+1)%batchSize==0:
+                        db.Write(batch,sync=True)
+                        batch=leveldb.WriteBatch()
+
+                        print 'database for subject: ',dataSet.subjectNum, db, ': ', count+1
+
+                if len(datahub)%batchSize!=0:
+                    db.Write(batch,sync=True)
+
+                    print 'database for subject: ',dataSet.subjectNum, db, ' last : ', len(data)
 
 
 
 
-            # print 'ID=', personID, 'data', db.split('data.csv')[0], ':    ', data[0], 'events', labels[0]
-finally:
-    del trainDB
-    del testDB
+        finally:
+            del trainDB
+            del testDB
+            del predDataDB
